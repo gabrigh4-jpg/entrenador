@@ -1,6 +1,6 @@
 // Caché de la app para que abra sin conexión. Los datos van por la API (POST) y no se cachean aquí:
 // la app guarda su propia copia local. Sube VERSION al cambiar archivos para que el móvil se actualice.
-const VERSION = 'entrenador-v1';
+const VERSION = 'entrenador-v2';
 const FILES = ['./', './index.html', './styles.css', './app.js', './figures.js', './data/ejercicios.js', './data/demo.js', './manifest.webmanifest', './icons/icon-192.png'];
 
 self.addEventListener('install', e => {

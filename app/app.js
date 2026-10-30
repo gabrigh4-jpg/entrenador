@@ -187,7 +187,8 @@
     const st = await read('state');
     const q = new URLSearchParams(location.search);
     const td = st.today.filter(s => ['planificada', 'reservar', 'hecha', 'a medias'].indexOf(s.estado) >= 0);
-    const live = td.find(s => s.estado === 'planificada' || s.estado === 'reservar');
+    // si ya ha terminado, va a "Por cerrar" y no se repite como sesión de hoy
+    const live = td.find(s => (s.estado === 'planificada' || s.estado === 'reservar') && !st.toClose.some(c => c.id === s.id));
     let html = '<div class="head"><div><div class="over">' + esc(cap(longDay(st.hoy))) + '</div><h1>Resumen</h1></div>' +
       '<div style="display:flex;gap:8px;align-items:center"><span class="pill" title="Semanas seguidas cumpliendo el plan">' + ICON.flame + esc(st.streak) + (st.streak === 1 ? ' semana' : ' semanas') + '</span>' +
       '<a class="iconbtn" href="#/ajustes" aria-label="Ajustes">' + ICON.gear + '</a></div></div>' + banner();
