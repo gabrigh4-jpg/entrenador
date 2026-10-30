@@ -148,4 +148,27 @@ test('datos del reloj: zonas, pulso medio entrenando y actividades de Strava que
   assert.ok(/pct_z1_z2":67/.test(ctx.watchSummary_()));
 });
 
+test('lo que no te gusta se cambia siempre y lo que te gusta menos, una semana sí y otra no', () => {
+  const pr = ctx.prefs_({ no_me_gusta: 'Las máquinas y el salto al cajón', menos_preferente: 'la búlgara, nadar' });
+  assert.deepStrictEqual(Array.from(pr.evitar).sort(), ['face_pull', 'jalon_pecho', 'lenador_polea', 'salto_cajon']);
+  assert.deepStrictEqual(Array.from(pr.reducir).sort(), ['NA', 'bulgara']);
+  const ids = (k, sem) => ctx.prescribe_(k, { semana: sem, bloque: 1 }, 'gym', pr).map(e => e.id);
+  [1, 2].forEach(sem => {
+    const fb = ids('FB', sem), fa = ids('FA', sem);
+    assert.ok(!fb.some(id => pr.evitar.indexOf(id) >= 0) && fa.indexOf('salto_cajon') < 0, 'semana ' + sem);
+    assert.strictEqual(new Set(fb).size, fb.length);
+  });
+  assert.ok(ids('FC', 1).indexOf('bulgara') >= 0 && ids('FC', 2).indexOf('bulgara') < 0);
+  const fb = ctx.prescribe_('FB', { semana: 1, bloque: 1 }, 'gym', pr);
+  assert.strictEqual(fb.find(e => e.id === 'remo_banda').en_lugar_de, 'jalon_pecho');
+  // los contactos de salto se mantienen aunque cambie el ejercicio
+  const contacts = l => l.filter(e => e.t === 'plio').reduce((a, e) => a + e.contactos, 0);
+  assert.strictEqual(contacts(ctx.prescribe_('FA', { semana: 1, bloque: 1 }, 'gym', pr)), 40);
+  // natación menos preferente: sale 1 de cada 3 semanas; si no te gusta, nunca
+  const swims = [0, 1, 2, 3, 4, 5].filter(wk => ctx.bikeOrSwim_(wk, pr) === 'NA').length;
+  assert.strictEqual(swims, 2);
+  assert.ok([0, 1, 2, 3].every(wk => ctx.bikeOrSwim_(wk, ctx.prefs_({ no_me_gusta: 'nadar' })) === 'BI'));
+  assert.deepStrictEqual(Array.from(ctx.prefs_({}).evitar), []);
+});
+
 console.log('\n' + n + ' pruebas correctas');

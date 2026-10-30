@@ -8,7 +8,7 @@ App de móvil (Android, se instala desde el navegador) que hace de entrenador pe
 - **Chat con el entrenador**: Groq (rápido) y Gemini de respaldo, gratis. Solo puede citar estudios verificados; si no hay estudio, lo dice.
 - **Bibliotecas** de ejercicios (25 fichas con dibujos propios) y de estudios (17 verificados en Crossref).
 - **Progreso**: racha semanal, sesiones, carga, kilómetros, fuerza estimada, peso y objetivos.
-- **Perfil**: tus gustos, lesiones y horarios (los usa el entrenador) y los datos del reloj vía intervals.icu: VO2max, pulso en reposo, pulso medio entrenando, zonas de pulso, forma y fatiga. Strava no deja que otras apps lean tus actividades, así que el reloj se conecta a intervals.icu a través de Garmin.
+- **Perfil**: tus gustos, lesiones y horarios (los usa el entrenador). Lo que no te gusta lo cambia por una alternativa equivalente siempre que la hay; lo que te gusta menos sale una semana sí y otra no (y la natación o la bici, una de cada tres) y los datos del reloj vía intervals.icu: VO2max, pulso en reposo, pulso medio entrenando, zonas de pulso, forma y fatiga. Strava no deja que otras apps lean tus actividades, así que el reloj se conecta a intervals.icu a través de Garmin.
 - **Avisos** por un bot de Telegram aparte, con botón para abrir la app.
 
 No hay servidor propio: el cerebro vive en el mismo proyecto de Apps Script que tu agenda, y la app es una página estática. No gasta tokens de Claude.

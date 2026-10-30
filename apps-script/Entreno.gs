@@ -243,17 +243,95 @@ function blockWeek_(monday, startMonday) {
   return { semana: weeks % ENT.BLOCK_WEEKS + 1, bloque: Math.floor(weeks / ENT.BLOCK_WEEKS) + 1 };
 }
 
+// ------------------------------------------------------------------ gustos: lo que no te gusta y lo que te gusta menos
+
+// Palabras con las que se reconoce cada ejercicio (o grupo) en lo que escribes en el perfil, sin tildes.
+const ENT_NAMES = {
+  pogo: ['pogo'], salto_cajon: ['salto al cajon', 'saltos al cajon', 'box jump'], saltos_laterales: ['saltos laterales', 'patinador'],
+  sentadilla_goblet: ['sentadilla goblet', 'goblet'], peso_muerto_rumano: ['peso muerto rumano', 'rumano'], zancada_atras: ['zancada'],
+  puente_gluteo_unilateral: ['puente'], elevacion_talones: ['talones', 'gemelo'], pallof: ['pallof'], lanzamiento_rotacional: ['lanzamiento', 'balon medicinal'],
+  press_mancuernas: ['press de banca', 'press banca', 'press con mancuernas', 'press'], jalon_pecho: ['jalon', 'dominada'], remo_mancuerna: ['remo con mancuerna'],
+  face_pull: ['face pull'], rotacion_externa: ['rotacion externa', 'rotaciones'], ytw: ['ytw', 'y-t-w'], plancha_lateral: ['plancha'],
+  bulgara: ['bulgara'], step_up: ['subida al cajon', 'step up', 'step-up'], peso_muerto_unilateral: ['peso muerto a una pierna', 'peso muerto unilateral'],
+  flexiones: ['flexiones'], monster_walk: ['paso lateral', 'monster walk'], lenador_polea: ['lenador'], dead_bug: ['dead bug'], remo_banda: ['remo con banda'],
+};
+const ENT_GROUPS = [
+  [['saltos', 'pliometria', 'pliometricos'], ['pogo', 'salto_cajon', 'saltos_laterales']],
+  [['maquina', 'polea'], ['jalon_pecho', 'lenador_polea', 'face_pull']],
+  [['sentadilla'], ['sentadilla_goblet', 'bulgara']],
+  [['peso muerto'], ['peso_muerto_rumano', 'peso_muerto_unilateral']],
+  [['remo'], ['remo_mancuerna', 'remo_banda']],
+  [['core', 'abdominales'], ['pallof', 'dead_bug', 'plancha_lateral', 'lenador_polea']],
+];
+// Alternativas por orden de preferencia: mismo patrón de movimiento o el que más se le parece.
+const ENT_ALT = {
+  pogo: ['saltos_laterales', 'salto_cajon'], salto_cajon: ['pogo', 'saltos_laterales'], saltos_laterales: ['pogo', 'salto_cajon'],
+  sentadilla_goblet: ['bulgara', 'step_up'], peso_muerto_rumano: ['peso_muerto_unilateral', 'puente_gluteo_unilateral'], zancada_atras: ['bulgara', 'step_up'],
+  puente_gluteo_unilateral: ['step_up', 'monster_walk'], elevacion_talones: ['pogo'], pallof: ['dead_bug', 'plancha_lateral'],
+  lanzamiento_rotacional: ['lenador_polea', 'pallof'], press_mancuernas: ['flexiones'], jalon_pecho: ['remo_banda', 'remo_mancuerna'],
+  remo_mancuerna: ['remo_banda'], face_pull: ['ytw', 'rotacion_externa', 'remo_banda'], rotacion_externa: ['ytw', 'face_pull'], ytw: ['face_pull', 'rotacion_externa'],
+  plancha_lateral: ['pallof', 'dead_bug'], bulgara: ['zancada_atras', 'step_up'], step_up: ['zancada_atras', 'bulgara'],
+  peso_muerto_unilateral: ['peso_muerto_rumano', 'puente_gluteo_unilateral'], flexiones: ['press_mancuernas'], monster_walk: ['puente_gluteo_unilateral'],
+  lenador_polea: ['pallof', 'plancha_lateral'], dead_bug: ['plancha_lateral', 'pallof'], remo_banda: ['remo_mancuerna'],
+};
+const entPlain_ = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+/** Qué ejercicios y deportes nombra un texto libre ("no me gustan las máquinas ni nadar"). */
+function prefIds_(text) {
+  const t = entPlain_(text), out = {};
+  if (!t.trim()) return [];
+  Object.keys(ENT_NAMES).forEach(id => { if (ENT_NAMES[id].some(w => t.indexOf(w) >= 0)) out[id] = true; });
+  ENT_GROUPS.forEach(([words, ids]) => { if (words.some(w => t.indexOf(w) >= 0)) ids.forEach(id => { out[id] = true; }); });
+  if (/nadar|natacion|piscina/.test(t)) out.NA = true;
+  if (/\bbici|ciclismo|rodillo/.test(t)) out.BI = true;
+  return Object.keys(out);
+}
+/** { evitar, reducir } a partir de los campos no_me_gusta y menos_preferente del perfil. Si algo está en los dos, manda evitar. */
+function prefs_(pf) {
+  pf = pf || perfil_();
+  const evitar = prefIds_(pf.no_me_gusta);
+  return { evitar, reducir: prefIds_(pf.menos_preferente).filter(id => evitar.indexOf(id) < 0) };
+}
+
+/** Bici o natación esta semana: se alternan; lo que no te gusta no sale y lo que te gusta menos sale una semana de cada tres. */
+function bikeOrSwim_(weekNo, prefs) {
+  const no = id => prefs.evitar.indexOf(id) >= 0, menos = id => prefs.reducir.indexOf(id) >= 0;
+  if (no('NA') && !no('BI')) return 'BI';
+  if (no('BI') && !no('NA')) return 'NA';
+  if (menos('NA') && !menos('BI')) return weekNo % 3 ? 'BI' : 'NA';
+  if (menos('BI') && !menos('NA')) return weekNo % 3 ? 'NA' : 'BI';
+  return weekNo % 2 ? 'NA' : 'BI';
+}
+
 /** Series, repeticiones, RIR y descanso de cada ejercicio según la semana del bloque. La 4.ª es de descarga. */
-function prescribe_(key, w, version) {
+function prescribe_(key, w, version, prefs) {
   const s = ENT_SESSIONS[key];
   if (!s.ej) return null;
-  const list = version === 'casa' ? ENT_CASA[key] : version === 'corta' ? ENT_CORTA[key] : s.ej.map(e => e.id);
+  let list = version === 'casa' ? ENT_CASA[key] : version === 'corta' ? ENT_CORTA[key] : s.ej.map(e => e.id);
   const byId = {};
+  Object.keys(ENT_SESSIONS).forEach(k => (ENT_SESSIONS[k].ej || []).forEach(e => { if (!byId[e.id]) byId[e.id] = e; }));
   s.ej.forEach(e => { byId[e.id] = e; });
+  // lo que no te gusta se cambia siempre; lo que te gusta menos, en semanas alternas (las pares).
+  // Solo si hay alternativa que no esté ya en la sesión ni la evites; si no, un básico se queda (es lo que hace falta).
+  const swapped = {};
+  if (prefs && (prefs.evitar.length || prefs.reducir.length)) {
+    const ev = prefs.evitar, red = w.semana % 2 === 0 ? prefs.reducir : [];
+    const out = [];
+    list.forEach(id => {
+      if (ev.indexOf(id) < 0 && red.indexOf(id) < 0) return out.push(id);
+      const alt = (ENT_ALT[id] || []).find(a => ev.indexOf(a) < 0 && red.indexOf(a) < 0 && list.indexOf(a) < 0 && out.indexOf(a) < 0)
+        || (ev.indexOf(id) >= 0 ? (ENT_ALT[id] || []).find(a => ev.indexOf(a) < 0 && list.indexOf(a) < 0 && out.indexOf(a) < 0) : null);
+      if (alt) { out.push(alt); swapped[alt] = id; }
+      // un accesorio que no te gusta y sin alternativa libre se quita: sus sustitutos ya están en la sesión
+      else if (ev.indexOf(id) < 0 || ['fuerza', 'plio'].indexOf((byId[id] || {}).t) >= 0) out.push(id);
+    });
+    list = out;
+  }
   const deload = w.semana === 4;
   // pliometría: se cuenta por contactos y sube poco a poco (40 → 60 en el primer bloque), con descarga en la 4.ª
   const contacts = Math.min(100, [40, 50, 60, 30][w.semana - 1] + 10 * (w.bloque - 1));
   const main = [{ series: 3, reps: 10, rir: 3 }, { series: 3, reps: 8, rir: 2 }, { series: 4, reps: 8, rir: 2 }, { series: 2, reps: 8, rir: 4 }][w.semana - 1];
+  const tag = p => (swapped[p.id] ? Object.assign(p, { en_lugar_de: swapped[p.id] }) : p);
   return list.map(id => {
     const e = byId[id] || { id, t: /flexiones|remo_banda/.test(id) ? 'fuerza' : /dead_bug|plancha/.test(id) ? 'core' : /pogo|saltos/.test(id) ? 'plio' : 'acc', reps: 10 };
     if (e.t === 'plio') {
@@ -261,12 +339,12 @@ function prescribe_(key, w, version) {
       const throwing = /lanzamiento/.test(id);
       const share = list.filter(x => (byId[x] || {}).t === 'plio').length || 1;
       const total = Math.round(contacts / share);
-      return { id, t: 'plio', series: deload ? 2 : 3, reps: Math.max(4, Math.round(total / 3)), contactos: total, descanso: 60, nota: throwing ? 'lanzamientos por lado contra el frontón' : 'contactos suaves, aterriza en silencio' };
+      return tag({ id, t: 'plio', series: deload ? 2 : 3, reps: Math.max(4, Math.round(total / 3)), contactos: total, descanso: 60, nota: throwing ? 'lanzamientos por lado contra el frontón' : 'contactos suaves, aterriza en silencio' });
     }
     // los básicos (8 reps de serie) siguen la progresión del bloque; el resto mantiene sus repeticiones
-    if (e.t === 'fuerza') return { id, t: 'fuerza', series: main.series, reps: e.reps === 8 ? main.reps : e.reps, rir: main.rir, descanso: 120, lado: !!e.lado };
-    if (e.t === 'core') return { id, t: 'core', series: deload ? 1 : 2, reps: e.reps, seg: !!e.seg, rir: 3, descanso: 45, lado: !!e.lado };
-    return { id, t: 'acc', series: deload ? 1 : 2, reps: e.reps, rir: 3, descanso: 60, lado: !!e.lado };
+    if (e.t === 'fuerza') return tag({ id, t: 'fuerza', series: main.series, reps: e.reps === 8 ? main.reps : e.reps, rir: main.rir, descanso: 120, lado: !!e.lado });
+    if (e.t === 'core') return tag({ id, t: 'core', series: deload ? 1 : 2, reps: e.reps, seg: !!e.seg, rir: 3, descanso: 45, lado: !!e.lado });
+    return tag({ id, t: 'acc', series: deload ? 1 : 2, reps: e.reps, rir: 3, descanso: 60, lado: !!e.lado });
   });
 }
 
@@ -418,9 +496,8 @@ function planWeek_(when, mode, origen) {
   const existing = entRows_('Plan').filter(r => String(r.semana) === monday && ['planificada', 'hecha', 'a medias', 'reservar'].indexOf(String(r.estado)) >= 0);
   const have = {};
   existing.forEach(r => { have[String(r.clave)] = true; });
-  // alterna bici y natación cada semana
   const weekNo = Math.round(entAt_(monday, '12:00') / (7 * 86400000));
-  const keys = ENT_MODES[mode].map(k => k === 'BI|NA' ? (weekNo % 2 ? 'NA' : 'BI') : k).filter(k => !have[k]);
+  const keys = ENT_MODES[mode].map(k => k === 'BI|NA' ? bikeOrSwim_(weekNo, prefs_(pf)) : k).filter(k => !have[k]);
   const version = mode === 'normal' ? 'gym' : 'corta';
   const items = keys.map(k => ({ key: k, lugar: ENT_SESSIONS[k].lugar, min: ENT_SESSIONS[k].ej ? (version === 'corta' ? 30 : ENT_SESSIONS[k].min - (w.semana === 4 ? 15 : 0)) : cardioMinutes_(k, w) }));
   const days = [];
@@ -793,6 +870,7 @@ function coachSystem_() {
     '1. Solo puedes citar estudios de esta lista, y SOLO por su id entre corchetes, p. ej. [E3]. Nunca escribas autores, años, revistas ni títulos de estudios que no estén aquí. Nunca inventes un estudio ni una cifra.',
     '2. Si no hay un estudio de la lista que respalde algo, dilo con naturalidad ("esto es criterio propio" o "es práctica habitual, sin estudio sólido detrás").',
     '3. Siempre incluye tu propio razonamiento aplicado a él (su nivel, sus deportes, sus molestias o lesiones, su tiempo). Si la evidencia es débil o contradictoria, dilo.',
+    'Gustos: lo que pone en no_me_gusta, evítalo siempre que haya una alternativa igual de eficaz; lo de menos_preferente, redúcelo pero no lo quites. Si algo que no le gusta es necesario para sus objetivos (por ejemplo correr para el triatlón), dile por qué y busca la versión que menos le cueste.',
     'Estudios verificados:',
     ev.map(e => '[' + e.id + '] ' + e.afirmacion + ' (' + e.tipo + ', solidez ' + e.solidez + ')').join('\n'),
     'Perfil: ' + JSON.stringify(pf),
@@ -1197,7 +1275,7 @@ function apiSession_(id) {
     const series = entRows_('Series');
     const hist = series.filter(x => String(x.sesion) !== String(r.id));
     const mine = series.filter(x => String(x.sesion) === String(r.id));
-    out.ejercicios = prescribe_(r.clave, w, String(r.version)).map(p => {
+    out.ejercicios = prescribe_(r.clave, w, String(r.version), prefs_()).map(p => {
       const sug = p.t === 'fuerza' ? suggestKg_(p.id, p, hist) : null;
       return Object.assign(p, { sugerido: sug, hechas: mine.filter(x => x.ejercicio === p.id).map(x => ({ serie: x.serie, kg: x.kg, reps: x.reps, rir: x.rir })) });
     });

@@ -334,6 +334,7 @@
       html += '<section class="card tight">' + s.ejercicios.map(e => {
         const ex = window.EJERCICIOS[e.id];
         return '<a class="ex-row" href="#/ej/' + esc(e.id) + '"><div class="mini">' + (ex ? window.figureSvg(ex, 1, 50) : '') + '</div><div class="grow" style="flex:1;min-width:0"><div class="t" style="font-weight:600">' + esc(exName(e.id)) + '</div><div class="s muted small">' + esc(presc(e)) + '</div>' +
+          (e.en_lugar_de ? '<div class="small muted">En lugar de ' + esc(exName(e.en_lugar_de).toLowerCase()) + '</div>' : '') +
           (e.sugerido && e.sugerido.kg ? '<div class="small" style="color:var(--accent);font-weight:600">' + esc(e.sugerido.kg) + ' kg</div>' : '') + '</div>' + ICON.chev + '</a>';
       }).join('') + '</section>';
     } else if (s.texto) html += '<section class="card"><p style="margin:0">' + esc(s.texto) + '</p></section>';
@@ -553,9 +554,11 @@
   }
 
   // ------------------------------------------------------------------ perfil: gustos, reloj y sus datos
-  const PERFIL_SUGERIDO = [['gustos', 'Qué te gusta entrenar y qué no'], ['deportes', 'Deportes que haces'], ['lesiones', 'Molestias o lesiones a tener en cuenta'],
+  const PERFIL_SUGERIDO = [['gustos', 'Lo que más te gusta entrenar'], ['no_me_gusta', 'Lo evito siempre que haya una alternativa igual de buena (p. ej. máquinas, saltos al cajón)'],
+    ['menos_preferente', 'No lo quito, pero lo reduzco: sale una semana sí y otra no'], ['deportes', 'Deportes que haces'], ['lesiones', 'Molestias o lesiones a tener en cuenta'],
     ['horario_preferido', 'Cuándo prefieres entrenar'], ['casa', 'Material que tienes en casa'], ['gimnasio', 'Horario y distancia del gimnasio'], ['reloj', 'Modelo de reloj']];
-  const labelOf = k => { const s = PERFIL_SUGERIDO.find(x => x[0] === k); return s ? cap(s[0].replace(/_/g, ' ')) : cap(k.replace(/^pref_.*/, 'preferencia').replace(/_/g, ' ')); };
+  const PERFIL_LABEL = { gustos: 'Lo que te gusta', no_me_gusta: 'Lo que no te gusta', menos_preferente: 'Lo que te gusta menos' };
+  const labelOf = k => PERFIL_LABEL[k] || cap((PERFIL_SUGERIDO.some(x => x[0] === k) ? k : k.replace(/^pref_.*/, 'preferencia')).replace(/_/g, ' '));
   async function viewProfile() {
     const pr = await read('profile');
     const items = pr.perfil.slice();
