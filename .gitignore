@@ -1,0 +1,4 @@
+node_modules/
+.DS_Store
+# datos personales: solo en tu Apps Script
+apps-script/MiPerfil.gs

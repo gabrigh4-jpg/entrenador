@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F5F2">
+<title>Entrenador</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main id="view" aria-live="polite"></main>
+
+<nav id="tabs" aria-label="Secciones">
+  <a href="#/inicio" data-tab="inicio"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span>Inicio</span></a>
+  <a href="#/calendario" data-tab="calendario"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/></svg><span>Calendario</span></a>
+  <a href="#/chat" data-tab="chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><span>Entrenador</span></a>
+  <a href="#/biblio" data-tab="biblio"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4v16H5zM10 4h4v16h-4zM15.5 4.5l3.8-1 3.7 15.5-3.8 1z"/></svg><span>Bibliotecas</span></a>
+  <a href="#/progreso" data-tab="progreso"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Progreso</span></a>
+</nav>
+
+<div id="sheet" class="sheet" hidden>
+  <div class="sheet-backdrop" data-close></div>
+  <div class="sheet-panel" role="dialog" aria-modal="true"></div>
+</div>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script src="figures.js"></script>
+<script src="data/ejercicios.js"></script>
+<script src="data/demo.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

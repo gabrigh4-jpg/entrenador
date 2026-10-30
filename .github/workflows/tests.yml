@@ -1,0 +1,13 @@
+name: Pruebas
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: TZ=Europe/Madrid node tests/entreno.test.js
+      - name: La demo está al día con Entreno.gs
+        run: TZ=Europe/Madrid node tools/make-demo.js && git diff --exit-code app/data/demo.js
