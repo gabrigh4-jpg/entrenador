@@ -809,11 +809,14 @@ function chat_(text) {
   const today = ymd_(new Date()), monday = entMonday_(today);
   const week = entRows_('Plan').filter(r => String(r.semana) === monday).map(r => ({ id: r.id, titulo: r.titulo, fecha: r.fecha, inicio: r.inicio, estado: r.estado, prioridad: r.prioridad }));
   const hist = entRows_('Chat').slice(-8).map(c => (c.rol === 'yo' ? (perfil_().nombre || 'Usuario') + ': ' : 'Entrenador: ') + c.texto).join('\n');
-  const system = coachSystem_() + '\n\nHoy es ' + DIAS[new Date().getDay()] + ' ' + today + '. Plan de esta semana: ' + JSON.stringify(week) +
+  const sunday = entAddDays_(monday, 6);
+  const system = coachSystem_() + '\n\nHoy es ' + DIAS[new Date().getDay()] + ' ' + today + '. La semana acaba el domingo ' + sunday + '. Plan de esta semana: ' + JSON.stringify(week) +
     '\nConversación reciente:\n' + hist +
     '\n\nDevuelve SOLO un JSON: {"reply": "texto para él", "cites": ["E1"], "actions": [ ... ]}. Acciones posibles (solo si él lo pide o lo dice claro):' +
-    '\n{"type":"skip","id":"<id de la sesión>"} — no puede hacer esa sesión' +
-    '\n{"type":"move","id":"<id>","date":"YYYY-MM-DD","time":"HH:MM opcional"}' +
+    '\n{"type":"skip","id":"<id de la sesión>"} — no puede hacer esa sesión (el código la recoloca solo si queda hueco esta semana)' +
+    '\n{"type":"move","id":"<id>","date":"YYYY-MM-DD","time":"HH:MM opcional"} — solo a un día entre hoy y el ' + sunday + '; nunca a la semana siguiente: la semana que viene se planifica de nuevo el domingo' +
+    '\nSi no puede entrenar en lo que queda de semana, usa "skip" en cada sesión: saltarse sesiones sueltas no pasa nada.' +
+    '\nEn "reply" no afirmes que ya has movido o quitado nada: el código ejecuta las acciones y añade debajo lo que ha hecho de verdad.' +
     '\n{"type":"mode","mode":"normal|corto|mantenimiento"} — esta semana va con poco tiempo, exámenes, o vuelve a lo normal' +
     '\n{"type":"next_mode","mode":"normal|corto|mantenimiento"} — lo mismo, pero para la semana que viene' +
     '\n{"type":"log","tipo":"tenis|padel|surf|carrera|bici|natacion|fuerza|otro","minutos":60,"date":"YYYY-MM-DD"} — algo que ya ha hecho fuera del plan' +
@@ -827,7 +830,8 @@ function chat_(text) {
     try {
       let r = null;
       if (a.type === 'skip') r = cantDo_(a.id);
-      else if (a.type === 'move') r = moveSession_(a.id, a.date, a.time);
+      // fuera de su semana no se puede mover: se trata como "no puedo"
+      else if (a.type === 'move') r = String(a.date) > sunday ? cantDo_(a.id) : moveSession_(a.id, a.date, a.time);
       else if (a.type === 'mode') r = setMode_(a.mode);
       else if (a.type === 'next_mode' && ENT_MODES[a.mode]) { setPerfil_('modo_siguiente', a.mode); r = { msg: 'La semana que viene irá en modo ' + a.mode + '.' }; }
       else if (a.type === 'log') { entAppend_('Actividades', { id: newId_('a'), fecha: new Date(entAt_(/^\d{4}-\d\d-\d\d$/.test(a.date || '') ? a.date : today, '12:00')), fuente: 'chat', tipo: a.tipo, minutos: Number(a.minutos) || '' }); r = { msg: 'Apuntado: ' + a.tipo + (a.minutos ? ' ' + a.minutos + ' min' : '') + '.' }; }
@@ -837,7 +841,10 @@ function chat_(text) {
       if (r) { results.push(r.msg); if (r.undo) undo.push(r.undo); }
     } catch (err) { results.push('⚠️ ' + err.message); }
   });
-  const reply = out.reply + (results.length ? '\n\n' + results.join('\n') : '');
+  const uniq = results.filter((m, i) => results.indexOf(m) === i);
+  // si nada de lo que proponía ha salido, no se enseña una respuesta que diga lo contrario
+  const failed = uniq.length && uniq.every(m => /^⚠️/.test(m));
+  const reply = (failed ? 'No he podido hacerlo:' : out.reply) + (uniq.length ? '\n\n' + uniq.join('\n') : '');
   entAppend_('Chat', { id: newId_('c'), fecha: new Date(), rol: 'entrenador', texto: reply, citas: (out.cites || []).join(',') });
   return { reply, cites: citeObjects_(out.cites), undo: undo[0] || '', model: out.model };
 }
