@@ -796,6 +796,7 @@ function coachSystem_() {
     'Estudios verificados:',
     ev.map(e => '[' + e.id + '] ' + e.afirmacion + ' (' + e.tipo + ', solidez ' + e.solidez + ')').join('\n'),
     'Perfil: ' + JSON.stringify(pf),
+    watchSummary_(),
     'Objetivos: ' + entRows_('Objetivos').filter(o => o.estado === 'activo').map(o => o.titulo + (o.fecha ? ' (' + ymd_(new Date(o.fecha)) + ')' : '')).join('; '),
     'No eres fisioterapeuta ni médico: ante dolor que no se calma, que dura más de un día o que va a más, recomienda que se lo mire un profesional.',
   ].join('\n');
@@ -984,6 +985,96 @@ function notify_(html, query) {
   entTg_('sendMessage', p);
 }
 
+// ------------------------------------------------------------------ perfil y reloj (intervals.icu)
+// Strava no deja que otras apps lean tus actividades a través de intervals.icu: los datos del reloj llegan
+// conectando Garmin Connect directamente en intervals.icu. Las actividades que vienen de Strava se cuentan pero no se leen.
+
+// claves del Perfil que lleva el propio código: no se enseñan para editar
+const ENT_PERFIL_SISTEMA = ['modo', 'modo_siguiente', 'bloque_inicio', 'dolor_alerta'];
+
+function intervals_(path, athlete, key) {
+  const r = UrlFetchApp.fetch('https://intervals.icu/api/v1/athlete/' + (athlete || prop_('INTERVALS_ATHLETE')) + path, {
+    headers: { Authorization: 'Basic ' + Utilities.base64Encode('API_KEY:' + (key || prop_('INTERVALS_KEY'))) }, muteHttpExceptions: true });
+  if (r.getResponseCode() === 401 || r.getResponseCode() === 403) throw new Error('intervals.icu no acepta esa clave o ese id de atleta.');
+  if (r.getResponseCode() !== 200) throw new Error('intervals.icu ha respondido ' + r.getResponseCode() + '.');
+  return JSON.parse(r.getContentText());
+}
+
+function apiProfile_() {
+  return {
+    perfil: entRows_('Perfil').filter(r => ENT_PERFIL_SISTEMA.indexOf(String(r.clave)) < 0).map(r => ({ clave: String(r.clave), valor: String(r.valor) })),
+    reloj: { conectado: !!(prop_('INTERVALS_KEY') && prop_('INTERVALS_ATHLETE')), atleta: prop_('INTERVALS_ATHLETE') || '' },
+  };
+}
+
+function saveProfile_(items, borrar) {
+  items.forEach(it => { const k = String(it.clave || '').trim().toLowerCase().replace(/\s+/g, '_'); if (k && ENT_PERFIL_SISTEMA.indexOf(k) < 0) setPerfil_(k, String(it.valor || '').trim()); });
+  // se borra de abajo arriba para que no se muevan las filas
+  entRows_('Perfil').filter(r => borrar.indexOf(String(r.clave)) >= 0 && ENT_PERFIL_SISTEMA.indexOf(String(r.clave)) < 0)
+    .sort((a, b) => b._row - a._row).forEach(r => entTab_('Perfil').deleteRow(r._row));
+  return { msg: 'Perfil guardado. El entrenador lo tendrá en cuenta al planificar y en el chat.' };
+}
+
+/** Guarda la conexión con intervals.icu después de comprobar que funciona. Vacío = desconectar. */
+function connectWatch_(athlete, key) {
+  athlete = String(athlete || '').trim(); key = String(key || '').trim();
+  const props = PropertiesService.getScriptProperties();
+  CacheService.getScriptCache().remove('entWatch');
+  if (!athlete && !key) { props.deleteProperty('INTERVALS_KEY'); props.deleteProperty('INTERVALS_ATHLETE'); return { msg: 'Reloj desconectado.' }; }
+  if (!/^i?\d+$/.test(athlete)) throw new Error('El id de atleta es como i123456: está en intervals.icu → Settings, abajo del todo.');
+  if (!key) throw new Error('Falta la API key de intervals.icu.');
+  const me = intervals_('', athlete, key);
+  props.setProperty('INTERVALS_ATHLETE', athlete);
+  props.setProperty('INTERVALS_KEY', key);
+  return { msg: 'Reloj conectado' + (me && me.name ? ' (' + me.name + ')' : '') + '. Las actividades se importan solas cada 30 min.' };
+}
+
+/** Datos del reloj de las últimas 8 semanas: VO2max, pulso en reposo, VFC, sueño, forma y zonas de pulso. Se guarda 1 h. */
+function apiWatch_(fresh) {
+  if (!prop_('INTERVALS_KEY') || !prop_('INTERVALS_ATHLETE')) return { conectado: false };
+  const cache = CacheService.getScriptCache();
+  const hit = !fresh && cache.get('entWatch');
+  if (hit) return JSON.parse(hit);
+  const today = ymd_(new Date()), from = entAddDays_(today, -56), from28 = entAddDays_(today, -28);
+  const wellness = intervals_('/wellness?oldest=' + from + '&newest=' + today) || [];
+  const acts = intervals_('/activities?oldest=' + from + '&newest=' + today) || [];
+  const series = f => wellness.filter(d => d[f] != null && d[f] !== 0).map(d => ({ fecha: String(d.id).slice(0, 10), valor: Math.round(Number(d[f]) * 10) / 10 }));
+  const hidden = acts.filter(a => a._note || a.source === 'STRAVA' && !a.moving_time).length;
+  const ok = acts.filter(a => !a._note && a.moving_time);
+  // pulso medio entrenando, ponderado por el tiempo de cada actividad
+  const hrAvg = list => { const l = list.filter(a => a.average_heartrate); const t = l.reduce((s, a) => s + a.moving_time, 0); return t ? Math.round(l.reduce((s, a) => s + a.average_heartrate * a.moving_time, 0) / t) : null; };
+  const weeks = [];
+  for (let w = entMonday_(from); w <= today; w = entAddDays_(w, 7)) {
+    const l = ok.filter(a => { const d = String(a.start_date_local || '').slice(0, 10); return d >= w && d < entAddDays_(w, 7); });
+    weeks.push({ semana: w, fc: hrAvg(l), horas: Math.round(l.reduce((s, a) => s + a.moving_time, 0) / 360) / 10 });
+  }
+  const zones = [];
+  ok.filter(a => String(a.start_date_local || '').slice(0, 10) >= from28).forEach(a => (a.icu_hr_zone_times || []).forEach((sec, i) => { zones[i] = (zones[i] || 0) + (Number(sec) || 0); }));
+  const last = wellness.slice().reverse();
+  const pick = f => { const d = last.find(x => x[f] != null && x[f] !== 0); return d ? Number(d[f]) : null; };
+  const out = {
+    conectado: true, actualizado: Date.now(),
+    vo2max: series('vo2max'), reposo: series('restingHR'), hrv: series('hrv'),
+    sueno: pick('sleepSecs') ? Math.round(pick('sleepSecs') / 360) / 10 : null,
+    forma: pick('ctl') != null ? { ctl: Math.round(pick('ctl')), atl: Math.round(pick('atl') || 0) } : null,
+    fcEntreno: hrAvg(ok.filter(a => String(a.start_date_local || '').slice(0, 10) >= from28)),
+    semanas: weeks, zonas: zones.map(z => Math.round((z || 0) / 60)),
+    actividades: ok.length, ocultas: hidden,
+  };
+  cache.put('entWatch', JSON.stringify(out), 3600);
+  return out;
+}
+
+/** Resumen del reloj para el entrenador (solo si ya está en caché: el chat no espera a intervals.icu). */
+function watchSummary_() {
+  const hit = CacheService.getScriptCache().get('entWatch');
+  if (!hit) return '';
+  const w = JSON.parse(hit), lastV = l => l && l.length ? l[l.length - 1].valor : null;
+  const z = w.zonas || [], tot = z.reduce((a, b) => a + b, 0);
+  return 'Reloj (últimas semanas): ' + JSON.stringify({ vo2max: lastV(w.vo2max), fc_reposo: lastV(w.reposo), fc_media_entrenando: w.fcEntreno,
+    minutos_por_zona_28_dias: z, pct_z1_z2: tot ? Math.round(100 * ((z[0] || 0) + (z[1] || 0)) / tot) : null, forma: w.forma });
+}
+
 // ------------------------------------------------------------------ API de la app
 
 /** Bot.gs → doPost: if (p.app === 'entreno') return entrenoApi_(e); */
@@ -1017,6 +1108,10 @@ function entrenoAction_(b) {
     case 'chat_history': return { messages: entRows_('Chat').slice(-40).map(c => ({ rol: c.rol, texto: c.texto, fecha: +new Date(c.fecha), cites: citeObjects_(String(c.citas || '').split(',').filter(Boolean)) })) };
     case 'evidence': return { items: entRows_('Evidencia').map(e => ({ id: e.id, afirmacion: e.afirmacion, autores: e.autores, año: e.año, titulo: e.titulo, revista: e.revista, doi: e.doi, tipo: e.tipo, solidez: e.solidez, estado: e.estado, tema: e.tema })) };
     case 'stats': return apiStats_();
+    case 'profile': return apiProfile_();
+    case 'save_profile': return saveProfile_(b.items || [], b.borrar || []);
+    case 'connect_watch': return connectWatch_(b.atleta, b.clave);
+    case 'watch': return apiWatch_(!!b.fresh);
     case 'measure': entAppend_('Medidas', { id: newId_('m'), fecha: new Date(), tipo: b.tipo, valor: Number(b.valor), unidad: b.unidad || '', nota: b.nota || '' }); return { msg: 'Apuntado.' };
     case 'goal': entAppend_('Objetivos', { id: newId_('o'), creado: new Date(), titulo: b.titulo, detalle: b.detalle || '', fecha: b.fecha || '', prioridad: Number(b.prioridad) || 2, estado: 'activo' }); return { msg: 'Objetivo apuntado.' };
     case 'goal_done': { const g = entRows_('Objetivos').find(x => String(x.id) === String(b.id)); if (g) entUpdate_('Objetivos', g, { estado: b.estado || 'conseguido' }); return { msg: 'Hecho.' }; }

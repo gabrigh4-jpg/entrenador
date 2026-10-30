@@ -129,4 +129,23 @@ test('los minutos de carrera suben despacio y bajan en la descarga', () => {
   assert.strictEqual(ctx.cardioMinutes_('CL', { semana: 1, bloque: 2 }), 65);
 });
 
+test('datos del reloj: zonas, pulso medio entrenando y actividades de Strava que no se pueden leer', () => {
+  const store = {};
+  ctx.prop_ = k => ({ INTERVALS_KEY: 'x', INTERVALS_ATHLETE: 'i1' })[k] || '';
+  ctx.CacheService = { getScriptCache: () => ({ get: k => store[k] || null, put: (k, v) => { store[k] = v; }, remove: k => { delete store[k]; } }) };
+  ctx.ymd_ = () => '2026-11-04';
+  ctx.intervals_ = path => /wellness/.test(path)
+    ? [{ id: '2026-11-01', vo2max: 52, restingHR: 50, ctl: 30, atl: 40 }, { id: '2026-11-03', vo2max: 53, restingHR: 48, sleepSecs: 27000 }]
+    : [{ id: 'a', start_date_local: '2026-11-02T19:00:00', moving_time: 3600, average_heartrate: 140, icu_hr_zone_times: [600, 2400, 600] },
+       { id: 'b', start_date_local: '2026-11-03T19:00:00', moving_time: 1800, average_heartrate: 170, icu_hr_zone_times: [0, 600, 1200] },
+       { id: 'c', start_date_local: '2026-11-03T08:00:00', source: 'STRAVA', _note: 'no disponible por la API' }];
+  const w = ctx.apiWatch_(true);
+  assert.deepStrictEqual(Array.from(w.zonas), [10, 50, 30]);
+  assert.strictEqual(w.fcEntreno, 150);                    // (140·60 + 170·30) / 90
+  assert.strictEqual(w.ocultas, 1);
+  assert.strictEqual(w.vo2max[w.vo2max.length - 1].valor, 53);
+  assert.strictEqual(w.sueno, 7.5);
+  assert.ok(/pct_z1_z2":67/.test(ctx.watchSummary_()));
+});
+
 console.log('\n' + n + ' pruebas correctas');

@@ -8,6 +8,7 @@ App de móvil (Android, se instala desde el navegador) que hace de entrenador pe
 - **Chat con el entrenador**: Groq (rápido) y Gemini de respaldo, gratis. Solo puede citar estudios verificados; si no hay estudio, lo dice.
 - **Bibliotecas** de ejercicios (25 fichas con dibujos propios) y de estudios (17 verificados en Crossref).
 - **Progreso**: racha semanal, sesiones, carga, kilómetros, fuerza estimada, peso y objetivos.
+- **Perfil**: tus gustos, lesiones y horarios (los usa el entrenador) y los datos del reloj vía intervals.icu: VO2max, pulso en reposo, pulso medio entrenando, zonas de pulso, forma y fatiga. Strava no deja que otras apps lean tus actividades, así que el reloj se conecta a intervals.icu a través de Garmin.
 - **Avisos** por un bot de Telegram aparte, con botón para abrir la app.
 
 No hay servidor propio: el cerebro vive en el mismo proyecto de Apps Script que tu agenda, y la app es una página estática. No gasta tokens de Claude.
@@ -44,7 +45,7 @@ tools/          genera los datos del modo demostración a partir de Entreno.gs
    | `GEMINI_API_KEY` | Respaldo y resumen semanal | Ya la tienes de la agenda |
    | `ENT_TG_TOKEN` | Avisos | Crea un bot nuevo con @BotFather y pega su token |
    | `ENT_APP_URL` | Botón "Abrir la app" de los avisos | La dirección de la app (paso 2) |
-   | `INTERVALS_KEY` y `INTERVALS_ATHLETE` | Importar el reloj (opcional) | intervals.icu → Settings → Developer: API key y tu id (`i12345`) |
+   | `INTERVALS_KEY` y `INTERVALS_ATHLETE` | Datos del reloj (opcional) | Mejor desde la app: **Perfil → Reloj**, que comprueba que funcionan |
 
    Opcional: `GROQ_MODEL` si quieres otro modelo (por defecto `openai/gpt-oss-120b`).
 

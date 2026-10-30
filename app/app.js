@@ -33,6 +33,7 @@
     gear: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
     check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L19 7"/></svg>',
     send: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+    user: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
   };
   const TIPO_CLASS = t => t === 'fuerza' ? 'f' : ['carrera', 'bici', 'natacion'].indexOf(t) >= 0 ? 'c' : 'd';
   const LUGAR = { gym: 'Gimnasio', casa: 'En casa', calle: 'Calle', bici: 'Bici', piscina: 'Piscina', corta: 'Versión corta' };
@@ -130,10 +131,10 @@
     clearTimers();
     const parts = location.hash.replace(/^#\/?/, '').split('/');
     const r = parts[0] || 'inicio';
-    document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.tab === ({ sesion: 'inicio', gym: 'inicio', ej: 'biblio', ajustes: 'inicio' }[r] || r)));
+    document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.tab === ({ sesion: 'inicio', gym: 'inicio', ej: 'biblio', ajustes: 'inicio', perfil: 'inicio' }[r] || r)));
     document.body.classList.toggle('full', r === 'gym');
     if (!cfg && r !== 'ajustes') return viewWelcome();
-    const fn = { inicio: viewHome, calendario: viewCal, chat: viewChat, biblio: viewBiblio, ej: viewExercise, progreso: viewProgress, sesion: viewSession, gym: viewGym, ajustes: viewSettings }[r] || viewHome;
+    const fn = { inicio: viewHome, calendario: viewCal, chat: viewChat, biblio: viewBiblio, ej: viewExercise, progreso: viewProgress, perfil: viewProfile, sesion: viewSession, gym: viewGym, ajustes: viewSettings }[r] || viewHome;
     if (!view.children.length || r !== render.last) view.innerHTML = '<div class="spin" aria-label="Cargando"></div>';
     render.last = r;
     try { await fn(parts[1], parts[2]); }
@@ -171,7 +172,7 @@
   }
   function viewSettings() {
     const link = cfg && !cfg.demo ? location.origin + location.pathname + '#u=' + encodeURIComponent(cfg.url) + '&k=' + encodeURIComponent(cfg.key) : '';
-    view.innerHTML = '<div class="topbar">' + back('#/inicio', 'Inicio') + '</div><div class="head" style="padding-top:0"><h1>Ajustes</h1></div>' +
+    view.innerHTML = '<div class="topbar">' + back('#/perfil', 'Perfil') + '</div><div class="head" style="padding-top:0"><h1>Conexión</h1></div>' +
       '<div class="card">' + (cfg && cfg.demo ? '<p>Ahora estás en <b>modo demostración</b>.</p>' : '') + settingsForm() + '</div>' +
       (link ? '<div class="card"><h3>Instalar en otro móvil</h3><p class="muted small">Este enlace lleva la clave: no lo compartas.</p><button class="btn soft" type="button" id="copy">Copiar enlace de instalación</button></div>' : '') +
       '<div class="card"><div class="btns"><button class="btn line" type="button" id="demo">' + (cfg && cfg.demo ? 'Salir de la demostración' : 'Ver la demostración') + '</button><button class="btn line" type="button" id="clear">Vaciar copia local</button></div>' +
@@ -191,7 +192,7 @@
     const live = td.find(s => (s.estado === 'planificada' || s.estado === 'reservar') && !st.toClose.some(c => c.id === s.id));
     let html = '<div class="head"><div><div class="over">' + esc(cap(longDay(st.hoy))) + '</div><h1>Resumen</h1></div>' +
       '<div style="display:flex;gap:8px;align-items:center"><span class="pill" title="Semanas seguidas cumpliendo el plan">' + ICON.flame + esc(st.streak) + (st.streak === 1 ? ' semana' : ' semanas') + '</span>' +
-      '<a class="iconbtn" href="#/ajustes" aria-label="Ajustes">' + ICON.gear + '</a></div></div>' + banner();
+      '<a class="iconbtn" href="#/perfil" aria-label="Perfil">' + ICON.user + '</a></div></div>' + banner();
 
     // preguntas del entrenador (p. ej. sesión clave sin hueco)
     st.questions.forEach(b => {
@@ -551,6 +552,73 @@
     if (e) sheet('<h2>' + esc(e.nombre) + '</h2>' + exerciseHtml(e).replace(/class="card/g, 'style="background:var(--bg)" class="card'));
   }
 
+  // ------------------------------------------------------------------ perfil: gustos, reloj y sus datos
+  const PERFIL_SUGERIDO = [['gustos', 'Qué te gusta entrenar y qué no'], ['deportes', 'Deportes que haces'], ['lesiones', 'Molestias o lesiones a tener en cuenta'],
+    ['horario_preferido', 'Cuándo prefieres entrenar'], ['casa', 'Material que tienes en casa'], ['gimnasio', 'Horario y distancia del gimnasio'], ['reloj', 'Modelo de reloj']];
+  const labelOf = k => { const s = PERFIL_SUGERIDO.find(x => x[0] === k); return s ? cap(s[0].replace(/_/g, ' ')) : cap(k.replace(/^pref_.*/, 'preferencia').replace(/_/g, ' ')); };
+  async function viewProfile() {
+    const pr = await read('profile');
+    const items = pr.perfil.slice();
+    PERFIL_SUGERIDO.forEach(([k]) => { if (!items.some(i => i.clave === k)) items.push({ clave: k, valor: '' }); });
+    const nombre = (items.find(i => i.clave === 'nombre') || {}).valor;
+    let html = '<div class="topbar">' + back('#/inicio', 'Inicio') + '<a class="iconbtn" href="#/ajustes" aria-label="Conexión con la agenda">' + ICON.gear + '</a></div>' +
+      '<div class="head" style="padding-top:0"><div><div class="over">Lo que el entrenador sabe de ti</div><h1>' + esc(nombre || 'Perfil') + '</h1></div></div>' + banner() +
+      '<section class="card"><div class="label">Sobre ti</div>' +
+      items.filter(i => i.clave !== 'nombre').map(i => '<label class="field"><span class="small" style="font-weight:600">' + esc(labelOf(i.clave)) + '</span><textarea data-pk="' + esc(i.clave) + '" rows="2" placeholder="' + esc((PERFIL_SUGERIDO.find(x => x[0] === i.clave) || [0, ''])[1]) + '">' + esc(i.valor) + '</textarea></label>').join('') +
+      '<div class="btns"><button class="btn accent grow" type="button" id="savep">Guardar</button><button class="btn line" type="button" id="addp">Añadir dato</button></div>' +
+      '<p class="muted small" style="margin:0">Deja un campo vacío para borrarlo. También puedes decírselo al entrenador en el chat.</p></section>';
+    html += '<section class="card"><div class="topbar"><h3>Reloj</h3>' + (pr.reloj.conectado ? '<span class="tag c">Conectado</span>' : '<span class="tag">Sin conectar</span>') + '</div>';
+    if (pr.reloj.conectado) {
+      html += '<p class="muted small" style="margin:0">Vía intervals.icu (atleta ' + esc(pr.reloj.atleta) + '). Las actividades se importan solas cada 30 min.</p><div class="btns"><button class="btn small line" type="button" id="disc">Desconectar</button></div></section>' +
+        '<div id="watch"><div class="spin" aria-label="Cargando datos del reloj"></div></div>';
+    } else {
+      html += '<p style="margin:0">Strava no deja que otras apps lean tus datos, así que el reloj se conecta a través de <b>intervals.icu</b> (gratis):</p>' +
+        '<ol class="steps small"><li>Crea la cuenta en intervals.icu y en Settings → Connections conecta <b>Garmin</b> (no Strava: sus actividades no se pueden leer).</li><li>En Settings, abajo del todo, en Developer Settings: copia tu <b>Athlete ID</b> y genera una <b>API Key</b>.</li></ol>' +
+        '<label class="field"><span class="label">Athlete ID</span><input id="wa" placeholder="i123456" autocomplete="off"></label>' +
+        '<label class="field"><span class="label">API Key</span><input id="wk" autocomplete="off"></label>' +
+        '<button class="btn accent" type="button" id="conn">Conectar reloj</button></section>';
+    }
+    view.innerHTML = html;
+    const collect = () => Array.from(view.querySelectorAll('[data-pk]')).map(t => ({ clave: t.dataset.pk, valor: t.value.trim() }));
+    $('#savep').onclick = () => { const all = collect(); act('save_profile', { items: all.filter(x => x.valor), borrar: all.filter(x => !x.valor).map(x => x.clave) }, () => { LS.del('cache.profile'); }); };
+    $('#addp').onclick = () => sheet('<h2>Añadir dato</h2><label class="field"><span class="label">Qué es</span><input id="k" placeholder="Por ejemplo: sueño, trabajo, alimentación"></label><label class="field"><span class="label">Detalle</span><textarea id="v"></textarea></label><button class="btn accent" type="button" id="ok">Añadir</button>', p => {
+      p.querySelector('#ok').onclick = () => { const k = p.querySelector('#k').value.trim(), v = p.querySelector('#v').value.trim(); if (!k || !v) return; closeSheet(); act('save_profile', { items: [{ clave: k, valor: v }], borrar: [] }); };
+    });
+    if ($('#conn')) $('#conn').onclick = () => act('connect_watch', { atleta: $('#wa').value, clave: $('#wk').value });
+    if ($('#disc')) $('#disc').onclick = () => act('connect_watch', { atleta: '', clave: '' });
+    if (pr.reloj.conectado) {
+      try { renderWatch(await read('watch')); }
+      catch (e) { const w = $('#watch'); if (w) w.innerHTML = '<div class="card note small">No he podido leer el reloj: ' + esc(e.message) + '</div>'; }
+    }
+  }
+
+  function renderWatch(w) {
+    const box = $('#watch');
+    if (!box) return;
+    const lastV = l => l && l.length ? l[l.length - 1].valor : null;
+    const dm = f => pdate(f).getDate() + '/' + (pdate(f).getMonth() + 1);
+    const z = w.zonas || [], tot = z.reduce((a, b) => a + b, 0), low = tot ? Math.round(100 * ((z[0] || 0) + (z[1] || 0)) / tot) : null;
+    const tile = (label, v, unit) => '<div class="stat"><span class="label">' + label + '</span><b>' + (v == null ? '–' : esc(String(v).replace('.', ','))) + '</b><span class="small muted">' + unit + '</span></div>';
+    let html = '<div class="stats">' + tile('VO2max', lastV(w.vo2max), 'ml/kg/min') + tile('FC reposo', lastV(w.reposo), 'ppm') + tile('FC entrenando', w.fcEntreno, 'ppm · 4 sem.') + '</div>';
+    if (w.forma || w.sueno) html += '<div class="stats" style="margin-top:10px">' + tile('Forma', w.forma ? w.forma.ctl : null, 'carga crónica') + tile('Fatiga', w.forma ? w.forma.atl : null, 'carga aguda') + tile('Sueño', w.sueno, 'horas anoche') + '</div>';
+    if (tot) {
+      html += '<section class="card" style="margin-top:14px"><div><h3>Zonas de pulso</h3><div class="small muted">Últimas 4 semanas · ' + Math.round(tot / 6) / 10 + ' h con pulso</div></div>' +
+        z.map((m, i) => { const pct = Math.round(100 * m / tot); return '<div style="display:grid;grid-template-columns:30px 1fr 112px;gap:8px;align-items:center"><b class="small">Z' + (i + 1) + '</b><div style="background:var(--bg);border-radius:4px;height:14px"><div style="width:' + Math.max(pct ? 2 : 0, pct) + '%;height:14px;border-radius:4px;background:var(--accent)"></div></div><span class="small" style="text-align:right;font-variant-numeric:tabular-nums">' + pct + ' % · ' + m + ' min</span></div>'; }).join('') +
+        '<p class="small" style="margin:0">' + (low >= 75 ? 'Un ' + low + ' % en zonas 1 y 2: bien repartido.' : 'Solo un ' + low + ' % en zonas 1 y 2: haces mucho a intensidad media o alta.') + ' En resistencia, lo habitual es que la mayor parte vaya a intensidad baja.</p><div class="btns"><button class="cite" type="button" id="e15">E15 · Seiler (2010)</button></div></section>';
+    }
+    if ((w.vo2max || []).length > 1) html += '<section class="card" style="margin-top:14px"><div><h3>VO2max estimado</h3><div class="small muted">Lo calcula el reloj; tómalo como tendencia, no como dato de laboratorio</div></div>' + lineChart(w.vo2max.map(p => ({ label: dm(p.fecha), value: p.valor })), 'ml/kg/min') + '</section>';
+    if ((w.reposo || []).length > 1) html += '<section class="card" style="margin-top:14px"><div><h3>Pulso en reposo</h3><div class="small muted">Si sube varios días seguidos puede ser cansancio acumulado o que te estás poniendo malo</div></div>' + lineChart(w.reposo.map(p => ({ label: dm(p.fecha), value: p.valor })), 'ppm') + '</section>';
+    const wk = (w.semanas || []).filter(x => x.fc);
+    if (wk.length > 1) html += '<section class="card" style="margin-top:14px"><div><h3>Pulso medio entrenando</h3><div class="small muted">Media de cada semana, ponderada por la duración de cada actividad</div></div>' + barChart(w.semanas.map(x => ({ label: dm(x.semana), value: x.fc || 0, tip: x.fc ? x.fc + ' ppm · ' + String(x.horas).replace('.', ',') + ' h' : 'Sin datos' })), 'ppm') + '</section>';
+    if (w.ocultas) html += '<div class="card note small" style="margin-top:14px">' + w.ocultas + ' actividad(es) vienen de Strava y intervals.icu no puede compartirlas. Conecta Garmin directamente en intervals.icu para verlas aquí.</div>';
+    if (!w.actividades && !(w.vo2max || []).length) html += '<div class="card note small" style="margin-top:14px">Aún no llegan datos. Comprueba que Garmin está conectado en intervals.icu y que el reloj ha sincronizado.</div>';
+    html += '<p class="muted small" style="text-align:center">Actualizado hace ' + ago(w.actualizado) + ' · <button class="linkbtn" type="button" id="wref">Actualizar</button></p>';
+    box.innerHTML = html;
+    bindCharts(box);
+    if ($('#e15')) $('#e15').onclick = () => studySheet('E15');
+    $('#wref').onclick = async () => { box.style.opacity = 0.5; try { renderWatch(await api('watch', { fresh: true })); } catch (e) { toast('⚠️ ' + e.message); } box.style.opacity = 1; };
+  }
+
   // ------------------------------------------------------------------ progreso
   let strengthEx = null;
   async function viewProgress() {
@@ -666,7 +734,8 @@
         { id: 'g3', titulo: 'Mejorar la postura', detalle: 'Fuerza de espalda y control escapular', fecha: '' }],
         questions: [{ id: 'q1', texto: 'Natación técnica no cabe esta semana sin tocar el estudio. ¿Qué hacemos?', opciones: ['Mantener estudio', 'Entrenar igual', 'Versión corta en casa'] }],
         chat: [{ rol: 'entrenador', texto: 'Esta semana toca la 2 del bloque: subimos un poco el volumen de fuerza y mantenemos la carrera suave. La fuerza mejora la economía de carrera [E3] y reduce lesiones [E1].', cites: ['E3', 'E1'].map(cite) }],
-        peso: [75.6, 75.2, 75.4, 74.9, 75.0, 74.8].map((v, i) => ({ fecha: addDays(mon, -7 * (5 - i)), valor: v })) };
+        peso: [75.6, 75.2, 75.4, 74.9, 75.0, 74.8].map((v, i) => ({ fecha: addDays(mon, -7 * (5 - i)), valor: v })),
+        perfil: [{ clave: 'nombre', valor: 'Demo' }, { clave: 'deportes', valor: 'carrera, bici, natación' }, { clave: 'gustos', valor: 'prefiere lo dinámico' }], reloj: true };
     }
     function cite(id) { const e = D.evidence.find(x => x.id === id); return e && { id: e.id, afirmacion: e.afirmacion, autores: e.autores, año: e.año, revista: e.revista, doi: e.doi, titulo: e.titulo, tipo: e.tipo, solidez: e.solidez }; }
     const out = r => ({ id: r.id, clave: r.clave, tipo: r.tipo, titulo: r.titulo, fecha: r.fecha, inicio: r.inicio, fin: r.fin, prioridad: r.prioridad, minutos: r.minutos, lugar: r.lugar, version: r.version, estado: r.estado, cierre: r.cierre });
@@ -743,6 +812,16 @@
       goal(b) { db.goals.push({ id: 'g' + Date.now(), titulo: b.titulo, detalle: '', fecha: b.fecha }); return { msg: 'Objetivo apuntado.' }; },
       goal_done(b) { db.goals = db.goals.filter(g => g.id !== b.id); return { msg: '¡Conseguido!' }; },
       plan_now() { return { placed: 0, missing: [] }; },
+      profile() { return { perfil: db.perfil, reloj: { conectado: db.reloj, atleta: db.reloj ? 'i000000' : '' } }; },
+      save_profile(b) { b.items.forEach(it => { const p = db.perfil.find(x => x.clave === it.clave); if (p) p.valor = it.valor; else db.perfil.push(it); }); db.perfil = db.perfil.filter(x => b.borrar.indexOf(x.clave) < 0); return { msg: 'Perfil guardado.' }; },
+      connect_watch(b) { db.reloj = !!(b.atleta || b.clave); return { msg: db.reloj ? 'Reloj conectado (demostración).' : 'Reloj desconectado.' }; },
+      watch() {
+        if (!db.reloj) return { conectado: false };
+        const mon = mondayOf(today()), days = n => Array.from({ length: n }, (_, i) => addDays(today(), -7 * (n - 1 - i)));
+        return { conectado: true, actualizado: Date.now() - 20 * 60000, vo2max: days(8).map((f, i) => ({ fecha: f, valor: 51 + Math.round(i * 0.3) })), reposo: days(8).map((f, i) => ({ fecha: f, valor: [52, 51, 52, 50, 50, 49, 50, 49][i] })),
+          hrv: [], sueno: 7.3, forma: { ctl: 34, atl: 41 }, fcEntreno: 142, zonas: [310, 520, 140, 60, 25],
+          semanas: Array.from({ length: 8 }, (_, i) => ({ semana: addDays(mon, -7 * (7 - i)), fc: [146, 144, 147, 141, 143, 140, 142, 139][i], horas: [3.1, 3.6, 2.4, 4, 3.8, 4.2, 3.5, 1.9][i] })), actividades: 23, ocultas: 0 };
+      },
     };
     return {
       call(action, body) {
